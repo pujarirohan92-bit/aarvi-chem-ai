@@ -1,69 +1,92 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Body
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
-from typing import List, Dict
-
-from pdf_generator import create_pdf
+import uuid
+import os
+from reportlab.lib.pagesizes import A4
+from reportlab.pdfgen import canvas
 
 app = FastAPI(
     title="Aarvi Chem AI",
-    version="2.2"
+    description="Organic & Inorganic Multi-Step Synthesis Intelligence",
+    version="2.0"
 )
 
-class SynthesisRequest(BaseModel):
+# =========================
+# Input schema
+# =========================
+class PDFRequest(BaseModel):
     smiles: str
 
-@app.get("/")
-def root():
-    return {"status": "Aarvi Chem AI running"}
 
-def mock_ai_engine(smiles: str) -> Dict:
-    report = f"""
-AARVI CHEM AI – SYNTHESIS REPORT
-================================
+# =========================
+# PDF Generator
+# =========================
+def generate_pdf(smiles: str, filepath: str):
+    c = canvas.Canvas(filepath, pagesize=A4)
+    width, height = A4
 
-Target Molecule (SMILES):
-{smiles}
+    y = height - 50
 
-Step 1:
-Reaction Type: Amide / Sulfonylurea Formation
-Reactants:
-- Amine fragment
-- Sulfonyl isocyanate
+    def line(text):
+        nonlocal y
+        c.drawString(40, y, text)
+        y -= 18
 
-Products:
-- Target molecule
+    line("AARVI CHEM AI – SYNTHESIS REPORT")
+    line("=" * 60)
+    y -= 10
 
-Conditions:
-- Base
-- Aprotic solvent
-- 0–25 °C
+    line(f"Target Molecule (SMILES):")
+    line(smiles)
+    y -= 10
 
-Notes:
-AI heuristic retrosynthesis suggestion.
+    line("Reaction Type:")
+    line("Amide / Sulfonylurea Formation")
+    y -= 10
 
-DISCLAIMER:
-This synthesis route is AI-generated and may differ from
-industrial or patented routes. Experimental validation required.
-"""
-    return {"report": report}
+    line("Proposed Synthetic Step:")
+    line("Reactants:")
+    line("• Amine fragment")
+    line("• Sulfonyl isocyanate")
+    y -= 10
 
-@app.post("/generate-report")
-def generate_report(req: SynthesisRequest):
-    data = mock_ai_engine(req.smiles)
-    return {
-        "status": "success",
-        "smiles": req.smiles,
-        "report": data["report"]
-    }
+    line("Conditions:")
+    line("• Base")
+    line("• Aprotic solvent")
+    line("• 0–25 °C")
+    y -= 10
 
-@app.post("/download-pdf")
-def download_pdf(req: SynthesisRequest):
-    data = mock_ai_engine(req.smiles)
-    pdf_path, filename = create_pdf(data["report"])
+    line("AI Notes:")
+    line("This synthesis route is AI-generated using retrosynthetic heuristics.")
+    line("Experimental validation is required.")
+    y -= 20
+
+    line("DISCLAIMER:")
+    line("For research & planning only. Not a laboratory protocol.")
+
+    c.showPage()
+    c.save()
+
+
+# =========================
+# PDF DOWNLOAD ENDPOINT
+# =========================
+@app.post(
+    "/generate-pdf",
+    response_class=FileResponse,
+    summary="Generate & Download Synthesis PDF"
+)
+def generate_pdf_endpoint(data: PDFRequest = Body(...)):
+    file_id = uuid.uuid4().hex
+    filename = f"synthesis_report_{file_id}.pdf"
+
+    tmp_path = f"/tmp/{filename}"
+
+    generate_pdf(data.smiles, tmp_path)
 
     return FileResponse(
-        pdf_path,
-        media_type="application/pdf",
-        filename=filename
+        path=tmp_path,
+        filename=filename,
+        media_type="application/pdf"
     )
