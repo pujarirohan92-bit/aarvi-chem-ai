@@ -1,70 +1,63 @@
 from fastapi import FastAPI
 from pydantic import BaseModel
-from chemistry_router import route_by_chemistry
-from route_generator import generate_routes
-from route_ranker import rank_routes
-from inorganic_engine import plan_inorganic
+from typing import List, Dict
 
-app = FastAPI(title="Aarvi Chem AI – V2.2 (Organic + Inorganic)")
+from report_engine import generate_synthesis_report
 
+app = FastAPI(
+    title="Aarvi Chem AI",
+    description="Organic & Inorganic Multi-Step Retrosynthesis Intelligence",
+    version="2.0"
+)
 
-class PredictRequest(BaseModel):
+# ---------- INPUT SCHEMA ----------
+
+class SynthesisRequest(BaseModel):
     smiles: str
-    max_steps: int = 3
-    n_routes: int = 3
 
+# ---------- ROOT ----------
 
-@app.post("/predict")
-def predict(req: PredictRequest):
-    routing = route_by_chemistry(req.smiles)
-    engine = routing["engine"]
-
-    # ORGANIC (small + large)
-    if engine in ["organic_engine", "organic_large_engine"]:
-        routes = generate_routes(req.smiles, req.max_steps, req.n_routes)
-        ranked = rank_routes(routes)
-
-        return {
-            "target_smiles": req.smiles,
-            "version": "v2.2",
-            "summary": {
-                "best_route_id": ranked[0]["route_id"],
-                "overall_confidence": ranked[0]["overall_confidence"],
-                "overall_expected_yield": ranked[0].get("overall_expected_yield")
-            },
-            "routes": ranked,
-            "meta": {
-                "chemistry_type": routing["info"]["type"],
-                "note": routing["info"]["note"]
-            }
-        }
-
-    # INORGANIC / COORDINATION
-    if engine == "inorganic_engine":
-        route = plan_inorganic(req.smiles, req.max_steps)
-
-        return {
-            "target_smiles": req.smiles,
-            "version": "v2.2",
-            "summary": {
-                "best_route_id": route["route_id"],
-                "overall_confidence": route["overall_confidence"]
-            },
-            "routes": [route],
-            "meta": {
-                "chemistry_type": routing["info"]["type"],
-                "note": "Coordination chemistry baseline (explainable)"
-            }
-        }
-
-    # ORGANOMETALLIC / UNKNOWN
+@app.get("/")
+def home():
     return {
-        "target_smiles": req.smiles,
-        "version": "v2.2",
-        "summary": None,
-        "routes": [],
-        "meta": {
-            "chemistry_type": routing["info"]["type"],
-            "note": "Detected but engine under development"
+        "message": "Aarvi Chem AI API is running",
+        "endpoints": {
+            "docs": "/docs",
+            "generate": "/generate"
         }
+    }
+
+# ---------- CORE LOGIC (TEMP MOCK PLANNER) ----------
+
+def mock_retrosynthesis_engine(smiles: str) -> List[Dict]:
+    """
+    Temporary planner.
+    Later this will be replaced by ML / GNN / template engine.
+    """
+
+    return [
+        {
+            "reaction": "Amide / Sulfonylurea Formation",
+            "reactants": ["Amine fragment", "Sulfonyl isocyanate"],
+            "products": ["Target molecule"],
+            "conditions": "Base, aprotic solvent, 0–25°C",
+            "notes": "Heuristic AI suggestion"
+        }
+    ]
+
+# ---------- API ENDPOINT ----------
+
+@app.post("/generate")
+def generate_synthesis(req: SynthesisRequest):
+    smiles = req.smiles
+
+    plan = mock_retrosynthesis_engine(smiles)
+
+    report_text = generate_synthesis_report(smiles, plan)
+
+    return {
+        "status": "success",
+        "input_smiles": smiles,
+        "report": report_text,
+        "plan": plan
     }
