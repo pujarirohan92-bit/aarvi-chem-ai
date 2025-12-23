@@ -1,0 +1,30 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+
+# Conda
+.env
+.conda/
+
+# ML models / checkpoints
+*.pt
+*.pth
+checkpoints/
+models/
+
+# Build / dist
+build/
+dist/
+*.exe
+
+# Logs
+*.log
+
+# Data
+*.csv
+*.npy
+
+# OS
+.DS_Store
+Thumbs.db
